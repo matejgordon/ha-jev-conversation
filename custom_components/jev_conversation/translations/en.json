@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Jev Conversation",
+        "description": "Czech Assist agent on TypeSafe Jev. Works through OpenRouter or the TypeSafe API.",
+        "data": {
+          "api_key": "API key",
+          "base_url": "API address",
+          "model": "Model",
+          "execute_threshold": "Execute from confidence",
+          "ask_threshold": "Ask back from confidence"
+        },
+        "data_description": {
+          "base_url": "OpenRouter: {openrouter_url}, TypeSafe: {typesafe_url}",
+          "model": "Pin a version so thresholds stay valid. OpenRouter: typesafe/jev-1.13-20260917, TypeSafe: jev-1.13.0",
+          "execute_threshold": "At or above this, the command runs (locks, alarms and garage or gate covers always ask first).",
+          "ask_threshold": "Between this and the execute threshold it asks back; below it answers that it did not understand."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The API key was rejected.",
+      "cannot_connect": "Could not reach the API address, or the model id was not accepted.",
+      "ask_above_execute": "The ask threshold must be lower than the execute threshold."
+    },
+    "abort": {
+      "single_instance_allowed": "Jev Conversation is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "execute_threshold": "Execute from confidence",
+          "ask_threshold": "Ask back from confidence"
+        },
+        "data_description": {
+          "execute_threshold": "At or above this, the command runs (locks, alarms and garage or gate covers always ask first).",
+          "ask_threshold": "Between this and the execute threshold it asks back; below it answers that it did not understand."
+        }
+      }
+    },
+    "error": {
+      "ask_above_execute": "The ask threshold must be lower than the execute threshold."
+    }
+  }
+}

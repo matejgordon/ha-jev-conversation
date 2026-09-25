@@ -1,0 +1,18 @@
+{
+  "domain": "jev_conversation",
+  "name": "Jev Conversation",
+  "codeowners": [
+    "@matejgordon"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "conversation"
+  ],
+  "documentation": "https://github.com/matejgordon/ha-jev-conversation",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/matejgordon/ha-jev-conversation/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

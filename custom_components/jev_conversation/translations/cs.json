@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Jev Conversation",
+        "description": "Český agent pro Assist nad modelem TypeSafe Jev. Funguje přes OpenRouter nebo TypeSafe API.",
+        "data": {
+          "api_key": "API klíč",
+          "base_url": "Adresa API",
+          "model": "Model",
+          "execute_threshold": "Vykonat od confidence",
+          "ask_threshold": "Doptat se od confidence"
+        },
+        "data_description": {
+          "base_url": "OpenRouter: {openrouter_url}, TypeSafe: {typesafe_url}",
+          "model": "Pinuj verzi, ať prahy platí dál. OpenRouter: typesafe/jev-1.13-20260917, TypeSafe: jev-1.13.0",
+          "execute_threshold": "Od této hodnoty se povel provede (zámky, alarm a garáž nebo brána se vždy nejdřív zeptají).",
+          "ask_threshold": "Mezi touto hodnotou a prahem pro vykonání se doptá, pod ní odpoví, že nerozumí."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "API klíč byl odmítnut.",
+      "cannot_connect": "Adresa API neodpovídá, nebo nepřijala ID modelu.",
+      "ask_above_execute": "Práh pro doptání musí být nižší než práh pro vykonání."
+    },
+    "abort": {
+      "single_instance_allowed": "Jev Conversation už je nastavený."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "execute_threshold": "Vykonat od confidence",
+          "ask_threshold": "Doptat se od confidence"
+        },
+        "data_description": {
+          "execute_threshold": "Od této hodnoty se povel provede (zámky, alarm a garáž nebo brána se vždy nejdřív zeptají).",
+          "ask_threshold": "Mezi touto hodnotou a prahem pro vykonání se doptá, pod ní odpoví, že nerozumí."
+        }
+      }
+    },
+    "error": {
+      "ask_above_execute": "Práh pro doptání musí být nižší než práh pro vykonání."
+    }
+  }
+}
