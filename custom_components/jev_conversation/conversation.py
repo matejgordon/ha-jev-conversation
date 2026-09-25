@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import difflib
 import logging
 import re
 import time
@@ -156,6 +157,7 @@ class Pending:
     text: str  # where the value is read from
     options: dict[str, Device] = field(default_factory=dict)
     confirmed: bool = False
+    retried: bool = False
     created: float = field(default_factory=time.monotonic)
 
 
@@ -180,6 +182,15 @@ def describe(state: State) -> str:
     if state.domain == "climate" and (current := attrs.get("current_temperature")) is not None:
         text += f", {str(current).replace('.', ',')} °C"
     return text
+
+
+def _is_echo(question: str, reply: str) -> bool:
+    """True when the reply is the satellite hearing its own question back.
+
+    Measured: the echo "Má vypnout vyvinkrutej." scored 0.60 against its question, real answers 0.41 at most.
+    """
+    norm = lambda t: " ".join(re.findall(r"\w+", t.lower()))  # noqa: E731
+    return difflib.SequenceMatcher(None, norm(question), norm(reply)).ratio() >= 0.5
 
 
 def _join(names: list[str]) -> str:
@@ -307,6 +318,12 @@ class JevConversationEntity(conversation.ConversationEntity):
             return await self._act(
                 pending.action, pending.targets, text, conversation_id, context, pending.confirmed, ask_value=False
             )
+
+        if not pending.retried and _is_echo(pending.question, text):
+            _LOGGER.info("Reply looks like our own question heard back, asking again: %s", text)
+            pending.retried, pending.created = True, time.monotonic()
+            self._pending[conversation_id] = pending
+            return "Neslyšel jsem. Ano, nebo ne?" if pending.kind == "confirm" else f"Neslyšel jsem. {pending.question}"
 
         state = {"otázka": pending.question, "odpověď": text}
         if pending.kind == "confirm":

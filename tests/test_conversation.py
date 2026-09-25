@@ -210,3 +210,30 @@ async def test_device_not_in_house_is_not_replaced_by_the_only_candidate(hass: H
     _, speech = await say(hass, agent_id, aioclient_mock, "Stáhni žaluzie", jev("close", "none", target_conf=0.98))
     assert speech == "Takové zařízení tu nemám."
     assert not calls
+
+
+async def test_echo_of_our_own_question_asks_again(hass: HomeAssistant, agent_id, aioclient_mock):
+    calls = async_mock_service(hass, "lock", "unlock")
+    result, speech = await say(hass, agent_id, aioclient_mock, "Odemkni", jev("unlock", "Vchodové dveře"))
+    assert speech == "Opravdu odemknout Vchodové dveře?"
+    # The satellite hears its own question instead of the answer: ask again, neither act nor cancel.
+    aioclient_mock.clear_requests()
+    result = await conversation.async_converse(
+        hass, "Opravdu odemknou vchodový dveře", result.conversation_id, Context(), language="cs", agent_id=agent_id
+    )
+    assert result.response.speech["plain"]["speech"] == "Neslyšel jsem. Ano, nebo ne?"
+    assert result.continue_conversation
+    assert not aioclient_mock.mock_calls and not calls
+
+    _, speech = await say(hass, agent_id, aioclient_mock, "ano", reply("yes"), result.conversation_id)
+    assert speech == "Hotovo."
+    assert [c.data["entity_id"] for c in calls] == [["lock.vchod"]]
+
+
+def test_echo_detection_matches_the_measured_case():
+    from custom_components.jev_conversation.conversation import _is_echo
+
+    question = "Mám vypnout Living room table light?"
+    assert _is_echo(question, "Má vypnout vyvinkrutej.")
+    for answer in ("Ano.", "Jo, vypni to.", "Ne.", "Ano, vypni tu lampu nad stolem."):
+        assert not _is_echo(question, answer)
