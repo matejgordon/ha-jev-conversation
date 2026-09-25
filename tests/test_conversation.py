@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from homeassistant.components import conversation
 from homeassistant.core import Context, HomeAssistant
-from pytest_homeassistant_custom_component.common import async_mock_service
+from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import device_registry as dr
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_mock_service
 
 from .conftest import JEV_URL
 
@@ -178,3 +180,33 @@ async def test_whole_house_group_needs_an_explicit_all(hass: HomeAssistant, agen
     _, speech = await say(hass, agent_id, aioclient_mock, "Zhasni všechna světla", group)
     assert speech == "Hotovo."
     assert len(calls[-1].data["entity_id"]) == 3
+
+
+async def test_group_without_room_uses_the_satellites_room(hass: HomeAssistant, agent_id, aioclient_mock):
+    calls = async_mock_service(hass, "light", "turn_on")
+    entry = MockConfigEntry(domain="esphome")
+    entry.add_to_hass(hass)
+    satellite = dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id, identifiers={("esphome", "voice")})
+    dr.async_get(hass).async_update_device(satellite.id, area_id=ar.async_get(hass).async_get_area_by_name("Obývák").id)
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.post(JEV_URL, json=jev("turn_on", "Lampa u gauče", all_of_kind=0.6, kind="light"))
+    result = await conversation.async_converse(
+        hass, "Rozsviť světlo", None, Context(), language="cs", agent_id=agent_id, device_id=satellite.id
+    )
+    assert result.response.speech["plain"]["speech"] == "Hotovo."
+    assert sorted(calls[-1].data["entity_id"]) == ["light.lampa_gauc", "light.lampa_okno"]
+
+    # "všechna" still means the whole house.
+    result = await conversation.async_converse(
+        hass, "Rozsviť všechna světla", None, Context(), language="cs", agent_id=agent_id, device_id=satellite.id
+    )
+    assert result.response.speech["plain"]["speech"] == "Hotovo."
+    assert len(calls[-1].data["entity_id"]) == 3
+
+
+async def test_device_not_in_house_is_not_replaced_by_the_only_candidate(hass: HomeAssistant, agent_id, aioclient_mock):
+    calls = async_mock_service(hass, "cover", "close_cover")
+    _, speech = await say(hass, agent_id, aioclient_mock, "Stáhni žaluzie", jev("close", "none", target_conf=0.98))
+    assert speech == "Takové zařízení tu nemám."
+    assert not calls

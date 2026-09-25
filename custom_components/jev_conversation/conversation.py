@@ -216,7 +216,9 @@ class JevConversationEntity(conversation.ConversationEntity):
     ) -> conversation.ConversationResult:
         start = time.monotonic()
         try:
-            speech = await self._process(user_input.text, chat_log.conversation_id, user_input.context)
+            speech = await self._process(
+                user_input.text, chat_log.conversation_id, user_input.context, self._satellite_area(user_input.device_id)
+            )
         except JevAuthError:
             _LOGGER.error("Jev rejected the API key")
             speech = "Jev odmítl API klíč, zkontroluj nastavení integrace."
@@ -239,7 +241,14 @@ class JevConversationEntity(conversation.ConversationEntity):
             cfg.get(CONF_ASK_THRESHOLD, DEFAULT_ASK_THRESHOLD),
         )
 
-    async def _process(self, text: str, conversation_id: str, context: Context) -> str:
+    def _satellite_area(self, device_id: str | None) -> str | None:
+        """The room of the satellite that heard the command, used when the command names none."""
+        if not device_id or not (device := dr.async_get(self.hass).async_get(device_id)) or not device.area_id:
+            return None
+        area = ar.async_get(self.hass).async_get_area(device.area_id)
+        return area.name if area else None
+
+    async def _process(self, text: str, conversation_id: str, context: Context, here: str | None = None) -> str:
         pending = self._pending.pop(conversation_id, None)
         if pending and time.monotonic() - pending.created < PENDING_TTL:
             if (reply := await self._resume(pending, text, conversation_id, context)) is not None:
@@ -259,7 +268,7 @@ class JevConversationEntity(conversation.ConversationEntity):
         action = action_answer["choice"]
         if action == "none":
             return "Tohle neumím." if action_answer["confidence"] >= ask else NOT_UNDERSTOOD
-        targets, target_conf, ranked = self._targets(action, answers, house)
+        targets, target_conf, ranked = self._targets(action, answers, house, text, here)
         if not targets:
             return "Takové zařízení tu nemám."
         conf = min(action_answer["confidence"], target_conf)
@@ -399,7 +408,9 @@ class JevConversationEntity(conversation.ConversationEntity):
             "input_number": ("input_number", "set_value", {"value": value}),
         }
 
-    def _targets(self, action: str, answers: dict, house: list[Device]) -> tuple[list[Device], float, list[Device]]:
+    def _targets(
+        self, action: str, answers: dict, house: list[Device], text: str, here: str | None
+    ) -> tuple[list[Device], float, list[Device]]:
         """(targets, confidence, ranked candidates) with the action's domains enforced in code."""
         domains = ACTION_DOMAINS[action]
         allowed = [d for d in house if domains is None or d.domain in domains]
@@ -409,12 +420,17 @@ class JevConversationEntity(conversation.ConversationEntity):
         ):
             area = answers.get("area", {"choice": "none"})
             group = [d for d in allowed if d.domain == kind["choice"] and area["choice"] in ("none", d.area)]
+            if area["choice"] == "none" and here and not WHOLE_HOUSE.search(text):
+                # No room named: like Home Assistant's own agent, act in the satellite's room.
+                group = [d for d in group if d.area == here] or group
             if group:
                 conf = kind["confidence"] if area["choice"] == "none" else min(kind["confidence"], area["confidence"])
                 return group, conf, []
+        target = answers["target"]
+        if target["choice"] == "none" and target["confidence"] >= 0.85:
+            return [], 0.0, []  # the named device is not in the house
         if len(allowed) == 1:
             return allowed, 1.0, []
-        target = answers["target"]
         probs = target["probabilities"]
         ranked = sorted(allowed, key=lambda d: probs.get(d.key, 0.0), reverse=True)
         if not ranked:

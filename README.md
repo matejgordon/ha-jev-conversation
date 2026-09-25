@@ -74,7 +74,8 @@ The API key is never logged.
   whole kind instead.
 - Changes by an amount ("o dva stupně víc"): it asks for the target value.
 - Delayed actions ("za deset minut") and alarm codes.
-- The satellite's room is not used to pick between same-named devices.
+- The satellite's room is used only for groups ("Zhasni světla" = lights in that room), not to pick
+  between same-named devices.
 - More than 254 exposed entities: refused with a message (Jev allows 255 options per question).
 
 ## Development
