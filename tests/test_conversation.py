@@ -237,3 +237,12 @@ def test_echo_detection_matches_the_measured_case():
     assert _is_echo(question, "Má vypnout vyvinkrutej.")
     for answer in ("Ano.", "Jo, vypni to.", "Ne.", "Ano, vypni tu lampu nad stolem."):
         assert not _is_echo(question, answer)
+
+
+async def test_spoken_verb_overrules_the_opposite_action(hass: HomeAssistant, agent_id, aioclient_mock):
+    on = async_mock_service(hass, "light", "turn_on")
+    off = async_mock_service(hass, "light", "turn_off")
+    _, speech = await say(hass, agent_id, aioclient_mock, "Zhasni lampu u gauče", jev("turn_on", "Lampa u gauče"))
+    assert speech == "Hotovo."
+    assert not on
+    assert [c.data["entity_id"] for c in off] == [["light.lampa_gauc"]]

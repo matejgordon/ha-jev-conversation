@@ -117,6 +117,17 @@ _BINARY_STATES = {
     **dict.fromkeys(("presence", "occupancy"), ("přítomen", "nepřítomen")),
     "motion": ("pohyb", "klid"),
 }
+# An explicit verb overrules the model's opposite pick: "zhasni" is never turn_on. Jev splits on/off
+# on some sentences ("Zapni televizi" came out 48/52), and one such pick lit four lights instead of none.
+SPOKEN_ACTIONS = {
+    "turn_on": {"zapni", "rozsviť", "rozsvit", "pusť", "spusť"},
+    "turn_off": {"vypni", "zhasni", "zastav"},
+    "open": {"otevři", "vytáhni", "zvedni"},
+    "close": {"zavři", "stáhni", "zatáhni"},
+    "lock": {"zamkni"},
+    "unlock": {"odemkni"},
+}
+OPPOSITE = {"turn_on": "turn_off", "turn_off": "turn_on", "open": "close", "close": "open", "lock": "unlock", "unlock": "lock"}
 SENSITIVE_DOMAINS = {"lock", "alarm_control_panel"}
 SENSITIVE_COVERS = {"garage", "gate"}
 
@@ -277,6 +288,10 @@ class JevConversationEntity(conversation.ConversationEntity):
 
         action_answer = answers["action"]
         action = action_answer["choice"]
+        spoken = {a for a, verbs in SPOKEN_ACTIONS.items() if verbs & set(re.findall(r"\w+", text.lower()))}
+        if len(spoken) == 1 and OPPOSITE.get(action) in spoken:
+            _LOGGER.info("Jev picked %s but the command says %s; following the command", action, *spoken)
+            action = spoken.pop()
         if action == "none":
             return "Tohle neumím." if action_answer["confidence"] >= ask else NOT_UNDERSTOOD
         targets, target_conf, ranked = self._targets(action, answers, house, text, here)
